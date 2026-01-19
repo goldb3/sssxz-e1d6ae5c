@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { 
   User, Trash2, Search, ChevronLeft, ChevronRight, Ban, CheckCircle, 
   Loader2, MailCheck, Mail, RefreshCw, Download, FileText, FileCode,
-  ArrowUpDown, ArrowUp, ArrowDown, ChevronsLeft, ChevronsRight
+  ArrowUpDown, ArrowUp, ArrowDown, ChevronsLeft, ChevronsRight, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,8 @@ interface UserProfile {
 type SortField = 'created_at' | 'email' | 'display_name' | 'role' | 'email_verified';
 type SortDirection = 'asc' | 'desc';
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 250];
+
 const AdminUsers = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,6 +85,9 @@ const AdminUsers = () => {
   const [resendingEmailUserId, setResendingEmailUserId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   
+  // Page size state
+  const [pageSize, setPageSize] = useState(10);
+  
   // Sort state
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -93,8 +98,6 @@ const AdminUsers = () => {
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendDuration, setSuspendDuration] = useState<string>("permanent");
   const [isSuspending, setIsSuspending] = useState(false);
-  
-  const pageSize = 10;
 
   // Use React Query hook for caching
   const { data, isLoading, refetch } = useAdminUsers(page, searchQuery, pageSize);
@@ -161,42 +164,135 @@ const AdminUsers = () => {
       : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
-  // Export functions
+  // Fetch ALL users for export (not just current page)
+  const fetchAllUsersForExport = async (): Promise<UserProfile[]> => {
+    const allUsers: UserProfile[] = [];
+    const exportPageSize = 500; // Fetch in chunks
+    let currentPage = 1;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data, error } = await api.db.rpc('get_all_profiles_for_admin', {
+        p_search: searchQuery || null,
+        p_page: currentPage,
+        p_page_size: exportPageSize
+      });
+      
+      if (error) throw error;
+      
+      const fetchedUsers = (data as UserProfile[]) || [];
+      allUsers.push(...fetchedUsers);
+      
+      // Check if we got less than the page size, meaning no more pages
+      hasMore = fetchedUsers.length === exportPageSize;
+      currentPage++;
+      
+      // Safety limit
+      if (currentPage > 100) break;
+    }
+    
+    return allUsers;
+  };
+
+  // Export functions - now export ALL users
   const exportToPDF = async () => {
     setIsExporting(true);
     try {
+      toast.info('Fetching all users for export...');
+      const allUsers = await fetchAllUsersForExport();
+      
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       
-      const doc = new jsPDF();
+      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for better table fit
+      
+      // Header with gradient-like styling
+      doc.setFillColor(99, 102, 241);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 35, 'F');
       
       // Title
-      doc.setFontSize(18);
-      doc.text('User List Export', 14, 22);
-      doc.setFontSize(11);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-      doc.text(`Total Users: ${totalCount}`, 14, 36);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('User Export Report', 14, 18);
       
-      // Prepare data
-      const tableData = sortedUsers.map(user => [
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Total Users: ${allUsers.length}`, doc.internal.pageSize.getWidth() - 50, 28);
+      
+      // Reset text color for body
+      doc.setTextColor(0, 0, 0);
+      
+      // Summary stats
+      const verifiedCount = allUsers.filter(u => u.email_verified).length;
+      const suspendedCount = allUsers.filter(u => u.is_suspended).length;
+      const adminCount = allUsers.filter(u => u.role === 'admin').length;
+      const modCount = allUsers.filter(u => u.role === 'moderator').length;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Summary:', 14, 45);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Total: ${allUsers.length} | Verified: ${verifiedCount} | Pending: ${allUsers.length - verifiedCount} | Suspended: ${suspendedCount} | Admins: ${adminCount} | Moderators: ${modCount}`, 14, 52);
+      
+      // Prepare table data
+      const tableData = allUsers.map((user, index) => [
+        (index + 1).toString(),
         user.display_name || 'N/A',
         user.email || 'N/A',
-        user.role,
-        user.email_verified ? 'Yes' : 'No',
-        user.is_suspended ? 'Suspended' : 'Active',
-        new Date(user.created_at).toLocaleDateString()
+        user.role.charAt(0).toUpperCase() + user.role.slice(1),
+        user.email_verified ? '✓ Verified' : '○ Pending',
+        user.is_suspended ? '⚠ Suspended' : '● Active',
+        new Date(user.created_at).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        })
       ]);
       
       autoTable(doc, {
-        head: [['Name', 'Email', 'Role', 'Email Verified', 'Status', 'Joined']],
+        head: [['#', 'Name', 'Email', 'Role', 'Email Status', 'Account Status', 'Joined Date']],
         body: tableData,
-        startY: 42,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [99, 102, 241] },
+        startY: 58,
+        styles: { 
+          fontSize: 8,
+          cellPadding: 3,
+        },
+        headStyles: { 
+          fillColor: [99, 102, 241],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 60 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: { halign: 'center', cellWidth: 30 },
+          5: { halign: 'center', cellWidth: 30 },
+          6: { halign: 'center', cellWidth: 30 }
+        },
+        didDrawPage: (data) => {
+          // Footer
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128);
+          doc.text(
+            `Page ${data.pageNumber}`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+          );
+        }
       });
       
-      doc.save(`users-export-${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('PDF exported successfully!');
+      doc.save(`users-complete-export-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success(`PDF exported successfully! (${allUsers.length} users)`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error('Failed to export PDF');
@@ -205,41 +301,55 @@ const AdminUsers = () => {
     }
   };
 
-  const exportToXML = () => {
+  const exportToXML = async () => {
     setIsExporting(true);
     try {
-      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-      xml += '<users>\n';
-      xml += `  <metadata>\n`;
-      xml += `    <exportDate>${new Date().toISOString()}</exportDate>\n`;
-      xml += `    <totalCount>${totalCount}</totalCount>\n`;
-      xml += `  </metadata>\n`;
+      toast.info('Fetching all users for export...');
+      const allUsers = await fetchAllUsersForExport();
       
-      sortedUsers.forEach(user => {
-        xml += '  <user>\n';
-        xml += `    <id>${user.user_id}</id>\n`;
-        xml += `    <displayName><![CDATA[${user.display_name || ''}]]></displayName>\n`;
-        xml += `    <email><![CDATA[${user.email || ''}]]></email>\n`;
-        xml += `    <role>${user.role}</role>\n`;
-        xml += `    <emailVerified>${user.email_verified}</emailVerified>\n`;
-        xml += `    <isSuspended>${user.is_suspended || false}</isSuspended>\n`;
-        xml += `    <createdAt>${user.created_at}</createdAt>\n`;
-        xml += '  </user>\n';
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += '<?xml-stylesheet type="text/xsl" href="#stylesheet"?>\n';
+      xml += '<userExport>\n';
+      xml += '  <metadata>\n';
+      xml += `    <exportDate>${new Date().toISOString()}</exportDate>\n`;
+      xml += `    <exportDateFormatted>${new Date().toLocaleString()}</exportDateFormatted>\n`;
+      xml += `    <totalUsers>${allUsers.length}</totalUsers>\n`;
+      xml += `    <verifiedUsers>${allUsers.filter(u => u.email_verified).length}</verifiedUsers>\n`;
+      xml += `    <suspendedUsers>${allUsers.filter(u => u.is_suspended).length}</suspendedUsers>\n`;
+      xml += `    <adminUsers>${allUsers.filter(u => u.role === 'admin').length}</adminUsers>\n`;
+      xml += `    <moderatorUsers>${allUsers.filter(u => u.role === 'moderator').length}</moderatorUsers>\n`;
+      xml += `    <regularUsers>${allUsers.filter(u => u.role === 'user').length}</regularUsers>\n`;
+      xml += '  </metadata>\n';
+      xml += '  <users>\n';
+      
+      allUsers.forEach((user, index) => {
+        xml += '    <user>\n';
+        xml += `      <index>${index + 1}</index>\n`;
+        xml += `      <id>${user.user_id}</id>\n`;
+        xml += `      <displayName><![CDATA[${user.display_name || ''}]]></displayName>\n`;
+        xml += `      <email><![CDATA[${user.email || ''}]]></email>\n`;
+        xml += `      <role>${user.role}</role>\n`;
+        xml += `      <emailVerified>${user.email_verified || false}</emailVerified>\n`;
+        xml += `      <isSuspended>${user.is_suspended || false}</isSuspended>\n`;
+        xml += `      <createdAt>${user.created_at}</createdAt>\n`;
+        xml += `      <createdAtFormatted>${new Date(user.created_at).toLocaleString()}</createdAtFormatted>\n`;
+        xml += '    </user>\n';
       });
       
-      xml += '</users>';
+      xml += '  </users>\n';
+      xml += '</userExport>';
       
       const blob = new Blob([xml], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `users-export-${new Date().toISOString().split('T')[0]}.xml`;
+      a.download = `users-complete-export-${new Date().toISOString().split('T')[0]}.xml`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      toast.success('XML exported successfully!');
+      toast.success(`XML exported successfully! (${allUsers.length} users)`);
     } catch (error) {
       console.error('Error exporting XML:', error);
       toast.error('Failed to export XML');
@@ -248,32 +358,44 @@ const AdminUsers = () => {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     setIsExporting(true);
     try {
-      const headers = ['Name', 'Email', 'Role', 'Email Verified', 'Status', 'Joined'];
-      const rows = sortedUsers.map(user => [
-        `"${(user.display_name || 'N/A').replace(/"/g, '""')}"`,
-        `"${(user.email || 'N/A').replace(/"/g, '""')}"`,
-        user.role,
-        user.email_verified ? 'Yes' : 'No',
-        user.is_suspended ? 'Suspended' : 'Active',
-        new Date(user.created_at).toLocaleDateString()
-      ]);
+      toast.info('Fetching all users for export...');
+      const allUsers = await fetchAllUsersForExport();
       
-      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      // BOM for Excel UTF-8 compatibility
+      const BOM = '\uFEFF';
       
-      const blob = new Blob([csv], { type: 'text/csv' });
+      const headers = ['#', 'User ID', 'Display Name', 'Email', 'Role', 'Email Verified', 'Account Status', 'Registration Date', 'Registration Time'];
+      const rows = allUsers.map((user, index) => {
+        const date = new Date(user.created_at);
+        return [
+          (index + 1).toString(),
+          user.user_id,
+          `"${(user.display_name || 'N/A').replace(/"/g, '""')}"`,
+          `"${(user.email || 'N/A').replace(/"/g, '""')}"`,
+          user.role.charAt(0).toUpperCase() + user.role.slice(1),
+          user.email_verified ? 'Verified' : 'Pending',
+          user.is_suspended ? 'Suspended' : 'Active',
+          date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+          date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        ];
+      });
+      
+      const csv = BOM + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `users-complete-export-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      toast.success('CSV exported successfully!');
+      toast.success(`CSV exported successfully! (${allUsers.length} users)`);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       toast.error('Failed to export CSV');
@@ -476,6 +598,12 @@ const AdminUsers = () => {
     }
   };
 
+  const handlePageSizeChange = (newSize: string) => {
+    const size = parseInt(newSize);
+    setPageSize(size);
+    setPage(1); // Reset to first page when changing size
+  };
+
   const totalPages = Math.ceil(totalCount / pageSize);
   const selectableUsers = sortedUsers.filter(u => u.role !== 'admin');
   const allSelected = selectableUsers.length > 0 && selectedUsers.size === selectableUsers.length;
@@ -500,33 +628,57 @@ const AdminUsers = () => {
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Badge variant="secondary">{totalCount} users</Badge>
+          <Badge variant="secondary" className="gap-1">
+            <Users className="w-3 h-3" />
+            {totalCount} users
+          </Badge>
+          
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+              <SelectTrigger className="w-24 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map(size => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size} rows
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           {/* Export Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={isExporting || users.length === 0}>
+              <Button variant="outline" size="sm" disabled={isExporting || totalCount === 0}>
                 {isExporting ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
                   <Download className="w-4 h-4 mr-2" />
                 )}
-                Export
+                Export All
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportToPDF}>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">
+                Export all {totalCount} users
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={exportToPDF} disabled={isExporting}>
                 <FileText className="w-4 h-4 mr-2" />
-                Export as PDF
+                Export as PDF (with tables)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToXML}>
+              <DropdownMenuItem onClick={exportToXML} disabled={isExporting}>
                 <FileCode className="w-4 h-4 mr-2" />
-                Export as XML
+                Export as XML (structured)
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={exportToCSV}>
+              <DropdownMenuItem onClick={exportToCSV} disabled={isExporting}>
                 <FileText className="w-4 h-4 mr-2" />
-                Export as CSV
+                Export as CSV (Excel)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -806,7 +958,7 @@ const AdminUsers = () => {
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages} ({totalCount} users)
+            Showing {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount} users (Page {page} of {totalPages})
           </p>
           
           <div className="flex items-center gap-2 flex-wrap justify-center">
