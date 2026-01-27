@@ -221,9 +221,8 @@ const CookiePolicy = () => {
                 If you have any questions about our use of cookies, please contact us:
               </p>
               <div className="p-4 rounded-lg bg-secondary/30 border border-border">
-                <p className="text-foreground font-medium">Nullsto Privacy Team</p>
-                <p className="text-muted-foreground">Email: privacy@nullsto.com</p>
-                <p className="text-muted-foreground">Address: Your Company Address</p>
+                <p className="text-foreground font-medium">Nullsto Support Team</p>
+                <p className="text-muted-foreground">Email: support@nullsto.edu.pl</p>
               </div>
             </div>
           </motion.div>

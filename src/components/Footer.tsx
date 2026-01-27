@@ -32,7 +32,7 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
+    { icon: Twitter, href: "https://twitter.com/nullsto", label: "Twitter" },
     { icon: Github, href: "https://github.com", label: "GitHub" },
     { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
     { icon: Send, href: "https://t.me/nullstoemail", label: "Telegram" },
