@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight, Loader2, Chrome, KeyRound, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useSupabaseAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegistrationSettings } from "@/hooks/useRegistrationSettings";
@@ -15,6 +16,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import DOMPurify from "dompurify";
 import { api } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 import SetupWizard from "@/components/SetupWizard";
 
 const emailSchema = z.string().email("Please enter a valid email address").max(255);
@@ -69,6 +71,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
@@ -240,6 +243,13 @@ const Auth = () => {
           return;
         }
 
+        // Check if terms are agreed
+        if (!agreedToTerms) {
+          toast.error("You must agree to the Terms of Service and Privacy Policy to create an account.");
+          setIsSubmitting(false);
+          return;
+        }
+
         if (!validateInputs()) {
           setIsSubmitting(false);
           return;
@@ -262,6 +272,19 @@ const Auth = () => {
         if (error) {
           toast.error(error.message);
         } else if (data?.user) {
+          // Save terms acceptance timestamp to profile
+          try {
+            await supabase
+              .from('profiles')
+              .update({
+                terms_accepted_at: new Date().toISOString(),
+                terms_version: '1.0',
+              })
+              .eq('user_id', data.user.id);
+          } catch (termsError) {
+            console.error('Failed to save terms acceptance:', termsError);
+          }
+
           // Check if email confirmation is required
           if (regSettings.requireEmailConfirmation) {
             // Use combined edge function that handles both DB insert and email sending
@@ -565,6 +588,43 @@ const Auth = () => {
                   </div>
                 )}
 
+                {/* Terms Agreement Checkbox - Only show on signup */}
+                {mode === 'signup' && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 border border-border">
+                    <Checkbox
+                      id="terms-agreement"
+                      checked={agreedToTerms}
+                      onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                      disabled={!regSettings.allowRegistration}
+                      className="mt-0.5"
+                    />
+                    <label 
+                      htmlFor="terms-agreement" 
+                      className="text-sm text-muted-foreground leading-relaxed cursor-pointer"
+                    >
+                      I agree to the{' '}
+                      <Link 
+                        to="/terms" 
+                        target="_blank" 
+                        className="text-primary hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Terms of Service
+                      </Link>
+                      {' '}and{' '}
+                      <Link 
+                        to="/privacy" 
+                        target="_blank" 
+                        className="text-primary hover:underline font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Privacy Policy
+                      </Link>
+                      . I understand that illegal activities including hacking, carding, and cybercrime are strictly prohibited.
+                    </label>
+                  </div>
+                )}
+
                 {mode === 'login' && (
                   <div className="text-right">
                     <button
@@ -581,7 +641,7 @@ const Auth = () => {
                   type="submit"
                   variant="neon"
                   className="w-full"
-                  disabled={isSubmitting || (mode === 'signup' && !regSettings.allowRegistration)}
+                  disabled={isSubmitting || (mode === 'signup' && (!regSettings.allowRegistration || !agreedToTerms))}
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

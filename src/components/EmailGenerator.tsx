@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, RefreshCw, Check, Star, Volume2, Plus, Edit2, Sparkles, User, Mail, Zap, Clock, Crown, Share2 } from "lucide-react";
+import { Copy, RefreshCw, Check, Star, Volume2, Plus, Edit2, Sparkles, User, Mail, Zap, Clock, Crown, Share2, Shield } from "lucide-react";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -563,6 +564,23 @@ const EmailGenerator = () => {
           <div className="absolute inset-[1px] rounded-xl bg-card" />
           
           <div className="relative z-10">
+            {/* Terms Notice for Guests */}
+            {!user && (
+              <div className="flex items-center justify-center gap-2 mb-4 px-4 py-2 rounded-lg bg-secondary/30 border border-border/50 text-xs text-muted-foreground">
+                <Shield className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>
+                  By using this service, you agree to our{' '}
+                  <Link to="/terms" className="text-primary hover:underline font-medium">
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" className="text-primary hover:underline font-medium">
+                    Privacy Policy
+                  </Link>
+                </span>
+              </div>
+            )}
+
             {/* Header */}
             <div className="text-center mb-8">
               <motion.div 
