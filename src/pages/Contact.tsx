@@ -22,26 +22,26 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email Us",
-      details: "contact@nullsto.edu.pl",
+      details: "support@nullsto.edu.pl",
       subtitle: "We reply within 24 hours",
     },
     {
       icon: MessageSquare,
-      title: "Live Chat",
-      details: "Available 24/7",
-      subtitle: "Talk to our support team",
+      title: "Telegram",
+      details: "@nullstoemail",
+      subtitle: "Join our community",
     },
     {
       icon: MapPin,
       title: "Location",
-      details: "San Francisco, CA",
-      subtitle: "United States",
+      details: "Online Service",
+      subtitle: "Worldwide",
     },
     {
       icon: Clock,
-      title: "Business Hours",
-      details: "Mon - Fri: 9AM - 6PM",
-      subtitle: "PST Timezone",
+      title: "Response Time",
+      details: "Within 24-48 hours",
+      subtitle: "Business days",
     },
   ];
 

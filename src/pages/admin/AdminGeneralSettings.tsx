@@ -38,8 +38,8 @@ const defaultSettings: GeneralSettings = {
   siteTagline: 'Protect Your Privacy with Disposable Emails',
   siteDescription: 'Generate instant, anonymous email addresses. Perfect for sign-ups, testing, and keeping your real inbox spam-free.',
   siteUrl: 'https://nullsto.edu.pl',
-  contactEmail: 'contact@nullsto.com',
-  supportEmail: 'support@nullsto.com',
+  contactEmail: 'support@nullsto.edu.pl',
+  supportEmail: 'support@nullsto.edu.pl',
   timezone: 'UTC',
   dateFormat: 'YYYY-MM-DD',
 };
