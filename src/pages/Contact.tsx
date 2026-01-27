@@ -1,13 +1,18 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { motion } from "framer-motion";
-import { Mail, MessageSquare, MapPin, Clock } from "lucide-react";
+import { Mail, MessageSquare, MapPin, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { usePageContent } from "@/hooks/usePageContent";
+import DOMPurify from "dompurify";
+import SEOHead from "@/components/SEOHead";
 
 const Contact = () => {
+  const { data: page, isLoading } = usePageContent("contact");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Message sent! We'll get back to you soon.");
@@ -42,6 +47,10 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={page?.meta_title || "Contact Us | Nullsto"}
+        description={page?.meta_description || "Get in touch with the Nullsto team."}
+      />
       <Header />
       <main className="pt-28 md:pt-32 pb-12">
         <div className="container mx-auto px-4">
