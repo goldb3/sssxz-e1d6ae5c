@@ -77,11 +77,22 @@ const EmailExpiryTimer = ({ expiresAt, onExpired }: EmailExpiryTimerProps) => {
           : 'text-primary'
       }`} />
       <div className="flex items-center gap-0.5 sm:gap-1 font-mono text-sm sm:text-base font-medium">
-        <TimeUnit value={timeLeft.hours} label="h" isCritical={isCritical} isLowTime={isLowTime} />
-        <span className={isCritical ? 'text-destructive' : isLowTime ? 'text-amber-500' : 'text-muted-foreground'}>:</span>
-        <TimeUnit value={timeLeft.minutes} label="m" isCritical={isCritical} isLowTime={isLowTime} />
-        <span className={isCritical ? 'text-destructive' : isLowTime ? 'text-amber-500' : 'text-muted-foreground'}>:</span>
-        <TimeUnit value={timeLeft.seconds} label="s" isCritical={isCritical} isLowTime={isLowTime} />
+        {/* Show days if more than 24 hours remaining */}
+        {timeLeft.hours >= 24 ? (
+          <>
+            <span className={isCritical ? 'text-destructive' : isLowTime ? 'text-amber-500' : 'text-foreground'}>
+              {Math.floor(timeLeft.hours / 24)}d {timeLeft.hours % 24}h
+            </span>
+          </>
+        ) : (
+          <>
+            <TimeUnit value={timeLeft.hours} label="h" isCritical={isCritical} isLowTime={isLowTime} />
+            <span className={isCritical ? 'text-destructive' : isLowTime ? 'text-amber-500' : 'text-muted-foreground'}>:</span>
+            <TimeUnit value={timeLeft.minutes} label="m" isCritical={isCritical} isLowTime={isLowTime} />
+            <span className={isCritical ? 'text-destructive' : isLowTime ? 'text-amber-500' : 'text-muted-foreground'}>:</span>
+            <TimeUnit value={timeLeft.seconds} label="s" isCritical={isCritical} isLowTime={isLowTime} />
+          </>
+        )}
       </div>
       <span className={`text-xs ${
         isCritical 
