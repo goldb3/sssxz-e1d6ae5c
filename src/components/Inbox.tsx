@@ -48,7 +48,7 @@ const Inbox = () => {
   const { isAdmin } = useAdminRole();
   
   // 2. Custom hooks - Using secure email service with token-based access
-  const { receivedEmails, isLoading, markAsRead, saveEmail, currentEmail, refetch, triggerImapFetch, getFullEmail } = useEmailService();
+  const { receivedEmails, isLoading, markAsRead, saveEmail, currentEmail, refetch, triggerImapFetch, getFullEmail, addEmailFromRealtime } = useEmailService();
   
   // 3. All useState hooks together
   const [selectedEmail, setSelectedEmail] = useState<ReceivedEmail | null>(null);
@@ -89,13 +89,21 @@ const Inbox = () => {
   }, [playSound]);
 
   // 5. All useCallback hooks together
-  const handleNewEmail = useCallback(() => {
-    console.log('[Inbox] New email received via realtime, refetching...');
+  const handleNewEmail = useCallback((email: ReceivedEmail) => {
+    console.log('[Inbox] New email received via realtime:', email?.id);
+    
+    // Directly add the email from realtime payload for instant update
+    if (email && addEmailFromRealtime) {
+      addEmailFromRealtime(email);
+    }
+    
+    // Also refetch to ensure full data consistency (fetches body/html_body which realtime doesn't include)
     if (refetch) {
-      refetch();
+      // Slight delay to let database settle
+      setTimeout(() => refetch(), 500);
     }
     // Note: Sound is played by useRealtimeEmails via playSoundFromRealtime
-  }, [refetch]);
+  }, [refetch, addEmailFromRealtime]);
 
   // 6. Real-time hook
   const { newEmailCount, resetCount, pushPermission, requestPushPermission } = useRealtimeEmails({
