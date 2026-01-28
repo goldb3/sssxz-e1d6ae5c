@@ -887,6 +887,22 @@ export const useSecureEmailService = () => {
     }
   }, [currentEmail]);
 
+  // Add email directly from realtime payload (avoids refetch race conditions)
+  const addEmailFromRealtime = useCallback((email: ReceivedEmail) => {
+    if (!currentEmailRef.current || email.temp_email_id !== currentEmailRef.current.id) {
+      return; // Email is for a different temp address
+    }
+    
+    setReceivedEmails(prev => {
+      // Check if email already exists to avoid duplicates
+      if (prev.some(e => e.id === email.id)) {
+        return prev;
+      }
+      // Add new email at the beginning (most recent first)
+      return [email, ...prev];
+    });
+  }, []);
+
   return {
     domains,
     currentEmail,
@@ -907,6 +923,7 @@ export const useSecureEmailService = () => {
     triggerImapFetch,
     getAccessToken,
     getFullEmail,
+    addEmailFromRealtime,
   };
 };
 
