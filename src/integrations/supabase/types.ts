@@ -680,38 +680,62 @@ export type Database = {
       }
       friendly_websites: {
         Row: {
+          badge_color: string | null
+          badge_text: string | null
+          click_count: number | null
           created_at: string | null
           description: string | null
           display_order: number | null
           icon_url: string | null
           id: string
           is_active: boolean | null
+          is_featured: boolean | null
+          is_verified: boolean | null
+          last_clicked_at: string | null
           name: string
           open_in_new_tab: boolean | null
+          star_rating: number | null
+          tagline: string | null
           updated_at: string | null
           url: string
         }
         Insert: {
+          badge_color?: string | null
+          badge_text?: string | null
+          click_count?: number | null
           created_at?: string | null
           description?: string | null
           display_order?: number | null
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          is_featured?: boolean | null
+          is_verified?: boolean | null
+          last_clicked_at?: string | null
           name: string
           open_in_new_tab?: boolean | null
+          star_rating?: number | null
+          tagline?: string | null
           updated_at?: string | null
           url: string
         }
         Update: {
+          badge_color?: string | null
+          badge_text?: string | null
+          click_count?: number | null
           created_at?: string | null
           description?: string | null
           display_order?: number | null
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          is_featured?: boolean | null
+          is_verified?: boolean | null
+          last_clicked_at?: string | null
           name?: string
           open_in_new_tab?: boolean | null
+          star_rating?: number | null
+          tagline?: string | null
           updated_at?: string | null
           url?: string
         }
@@ -1753,6 +1777,10 @@ export type Database = {
       }
       increment_mailbox_usage: {
         Args: { p_mailbox_id: string }
+        Returns: undefined
+      }
+      increment_website_click: {
+        Args: { p_website_id: string }
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }

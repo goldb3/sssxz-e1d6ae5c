@@ -309,6 +309,46 @@
   .animate-shimmer {
     animation: shimmer 2s linear infinite;
   }
+
+  /* Friendly Websites Widget Animations */
+  @keyframes featured-glow {
+    0%, 100% { 
+      box-shadow: 0 0 5px hsl(var(--primary) / 0.3), 0 0 10px hsl(var(--primary) / 0.2); 
+    }
+    50% { 
+      box-shadow: 0 0 15px hsl(var(--primary) / 0.5), 0 0 25px hsl(var(--primary) / 0.3); 
+    }
+  }
+
+  @keyframes badge-shine {
+    0% { background-position: -100% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  .animate-featured-glow {
+    animation: featured-glow 2s ease-in-out infinite;
+  }
+
+  .animate-badge-shine {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary) / 0.8) 40%,
+      hsl(var(--primary)) 60%,
+      hsl(var(--primary) / 0.8) 100%
+    );
+    background-size: 200% 100%;
+    animation: badge-shine 2s linear infinite;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
 }
 
 /* Page Content Styles for editable pages */
