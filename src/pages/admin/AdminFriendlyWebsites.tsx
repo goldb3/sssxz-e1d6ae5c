@@ -13,7 +13,13 @@ import {
   Palette,
   Maximize2,
   ArrowLeftRight,
-  Smartphone
+  Smartphone,
+  Timer,
+  Type,
+  Sparkles,
+  Hash,
+  FileText,
+  PanelRightOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -62,11 +69,17 @@ interface WidgetSettings {
   enabled: boolean;
   visibleToPublic: boolean;
   visibleToLoggedIn: boolean;
-  colorScheme: 'primary' | 'accent' | 'gradient' | 'glass';
+  colorScheme: 'primary' | 'accent' | 'gradient' | 'glass' | 'neon' | 'sunset' | 'ocean' | 'forest' | 'midnight' | 'minimal';
   size: 'small' | 'medium' | 'large';
   position: 'left' | 'right';
   showOnMobile: boolean;
   animationType: 'slide' | 'fade' | 'bounce';
+  openByDefault: boolean;
+  autoCloseDelay: number | null;
+  showWebsiteCount: boolean;
+  pulseAnimation: boolean;
+  headerText: string;
+  showDescriptions: boolean;
 }
 
 const defaultSettings: WidgetSettings = {
@@ -78,6 +91,26 @@ const defaultSettings: WidgetSettings = {
   position: 'right',
   showOnMobile: true,
   animationType: 'slide',
+  openByDefault: false,
+  autoCloseDelay: null,
+  showWebsiteCount: true,
+  pulseAnimation: true,
+  headerText: 'Partner Sites',
+  showDescriptions: true,
+};
+
+// Color scheme preview colors
+const colorSchemePreview: Record<WidgetSettings['colorScheme'], string> = {
+  primary: 'bg-primary',
+  accent: 'bg-accent',
+  gradient: 'bg-gradient-to-r from-primary to-accent',
+  glass: 'bg-card border border-border',
+  neon: 'bg-pink-500',
+  sunset: 'bg-gradient-to-r from-orange-500 to-rose-500',
+  ocean: 'bg-gradient-to-r from-cyan-500 to-blue-500',
+  forest: 'bg-gradient-to-r from-emerald-500 to-teal-500',
+  midnight: 'bg-gradient-to-r from-purple-600 to-indigo-600',
+  minimal: 'bg-muted border border-border',
 };
 
 // Sortable Website Card Component
@@ -558,6 +591,134 @@ const AdminFriendlyWebsites = () => {
                 />
               </div>
 
+              <Separator />
+
+              {/* Display Behavior Section */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <PanelRightOpen className="w-4 h-4" />
+                  Display Behavior
+                </h4>
+
+                <div className="grid gap-4">
+                  {/* Open by Default */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <PanelRightOpen className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Open by Default</Label>
+                        <p className="text-xs text-muted-foreground">Widget opens automatically when page loads</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.openByDefault}
+                      onCheckedChange={(checked) => setSettings({ ...settings, openByDefault: checked })}
+                    />
+                  </div>
+
+                  {/* Auto-Close Delay */}
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Timer className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Auto-Close Delay</Label>
+                        <p className="text-xs text-muted-foreground">Automatically close after specified seconds</p>
+                      </div>
+                    </div>
+                    <Select
+                      value={settings.autoCloseDelay?.toString() || 'never'}
+                      onValueChange={(value) => 
+                        setSettings({ ...settings, autoCloseDelay: value === 'never' ? null : parseInt(value) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="5">5 seconds</SelectItem>
+                        <SelectItem value="10">10 seconds</SelectItem>
+                        <SelectItem value="15">15 seconds</SelectItem>
+                        <SelectItem value="30">30 seconds</SelectItem>
+                        <SelectItem value="60">60 seconds</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Show Website Count */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Hash className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Website Count</Label>
+                        <p className="text-xs text-muted-foreground">Display badge with number of partner sites</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showWebsiteCount}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showWebsiteCount: checked })}
+                    />
+                  </div>
+
+                  {/* Pulse Animation */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Pulse Animation</Label>
+                        <p className="text-xs text-muted-foreground">Show pulsing dot to attract attention</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.pulseAnimation}
+                      onCheckedChange={(checked) => setSettings({ ...settings, pulseAnimation: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Content Section */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Type className="w-4 h-4" />
+                  Content
+                </h4>
+
+                <div className="grid gap-4">
+                  {/* Header Text */}
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-muted-foreground" />
+                      <Label>Header Text</Label>
+                    </div>
+                    <Input
+                      value={settings.headerText}
+                      onChange={(e) => setSettings({ ...settings, headerText: e.target.value })}
+                      placeholder="Partner Sites"
+                    />
+                  </div>
+
+                  {/* Show Descriptions */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Descriptions</Label>
+                        <p className="text-xs text-muted-foreground">Display website descriptions in the list</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showDescriptions}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showDescriptions: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Visibility */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -589,93 +750,160 @@ const AdminFriendlyWebsites = () => {
                 </div>
               </div>
 
+              <Separator />
+
               {/* Appearance */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Palette className="w-4 h-4" />
-                    Color Scheme
-                  </Label>
-                  <Select
-                    value={settings.colorScheme}
-                    onValueChange={(value: WidgetSettings['colorScheme']) => 
-                      setSettings({ ...settings, colorScheme: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="accent">Accent</SelectItem>
-                      <SelectItem value="gradient">Gradient</SelectItem>
-                      <SelectItem value="glass">Glass</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  Appearance
+                </h4>
 
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Maximize2 className="w-4 h-4" />
-                    Size
-                  </Label>
-                  <Select
-                    value={settings.size}
-                    onValueChange={(value: WidgetSettings['size']) => 
-                      setSettings({ ...settings, size: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Palette className="w-4 h-4" />
+                      Color Scheme
+                    </Label>
+                    <Select
+                      value={settings.colorScheme}
+                      onValueChange={(value: WidgetSettings['colorScheme']) => 
+                        setSettings({ ...settings, colorScheme: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="primary">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.primary}`} />
+                            Primary
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="accent">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.accent}`} />
+                            Accent
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="gradient">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.gradient}`} />
+                            Gradient
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="glass">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.glass}`} />
+                            Glass
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="neon">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.neon}`} />
+                            Neon
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="sunset">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.sunset}`} />
+                            Sunset
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ocean">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.ocean}`} />
+                            Ocean
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="forest">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.forest}`} />
+                            Forest
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="midnight">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.midnight}`} />
+                            Midnight
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="minimal">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${colorSchemePreview.minimal}`} />
+                            Minimal
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <ArrowLeftRight className="w-4 h-4" />
-                    Position
-                  </Label>
-                  <Select
-                    value={settings.position}
-                    onValueChange={(value: WidgetSettings['position']) => 
-                      setSettings({ ...settings, position: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="left">Left</SelectItem>
-                      <SelectItem value="right">Right</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Maximize2 className="w-4 h-4" />
+                      Size
+                    </Label>
+                    <Select
+                      value={settings.size}
+                      onValueChange={(value: WidgetSettings['size']) => 
+                        setSettings({ ...settings, size: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Animation Type</Label>
-                  <Select
-                    value={settings.animationType}
-                    onValueChange={(value: WidgetSettings['animationType']) => 
-                      setSettings({ ...settings, animationType: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="slide">Slide</SelectItem>
-                      <SelectItem value="fade">Fade</SelectItem>
-                      <SelectItem value="bounce">Bounce</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <ArrowLeftRight className="w-4 h-4" />
+                      Position
+                    </Label>
+                    <Select
+                      value={settings.position}
+                      onValueChange={(value: WidgetSettings['position']) => 
+                        setSettings({ ...settings, position: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="left">Left</SelectItem>
+                        <SelectItem value="right">Right</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Animation Type</Label>
+                    <Select
+                      value={settings.animationType}
+                      onValueChange={(value: WidgetSettings['animationType']) => 
+                        setSettings({ ...settings, animationType: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="slide">Slide</SelectItem>
+                        <SelectItem value="fade">Fade</SelectItem>
+                        <SelectItem value="bounce">Bounce</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
+
+              <Separator />
 
               {/* Mobile */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
