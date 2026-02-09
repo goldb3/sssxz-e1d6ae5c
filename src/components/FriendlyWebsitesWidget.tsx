@@ -1,61 +1,31 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useSupabaseAuth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-interface FriendlyWebsite {
-  id: string;
-  name: string;
-  url: string;
-  icon_url: string | null;
-  description: string | null;
-  display_order: number;
-  is_active: boolean;
-  open_in_new_tab: boolean;
-}
-
-interface WidgetSettings {
-  enabled: boolean;
-  visibleToPublic: boolean;
-  visibleToLoggedIn: boolean;
-  colorScheme: 'primary' | 'accent' | 'gradient' | 'glass' | 'neon' | 'sunset' | 'ocean' | 'forest' | 'midnight' | 'minimal';
-  size: 'small' | 'medium' | 'large';
-  position: 'left' | 'right';
-  showOnMobile: boolean;
-  animationType: 'slide' | 'fade' | 'bounce';
-  openByDefault: boolean;
-  autoCloseDelay: number | null;
-  showWebsiteCount: boolean;
-  pulseAnimation: boolean;
-  headerText: string;
-  showDescriptions: boolean;
-}
-
-const defaultSettings: WidgetSettings = {
-  enabled: true,
-  visibleToPublic: true,
-  visibleToLoggedIn: true,
-  colorScheme: 'primary',
-  size: 'medium',
-  position: 'right',
-  showOnMobile: true,
-  animationType: 'slide',
-  openByDefault: false,
-  autoCloseDelay: null,
-  showWebsiteCount: true,
-  pulseAnimation: true,
-  headerText: 'Partner Sites',
-  showDescriptions: true,
-};
+import { Button } from "@/components/ui/button";
+import { useConfetti } from "@/hooks/useConfetti";
+import {
+  FriendlyWebsite,
+  WidgetSettings,
+  defaultSettings,
+  colorClasses,
+  buttonColorClasses,
+  pulseColors,
+} from "./friendly-websites/types";
+import WebsiteCard from "./friendly-websites/WebsiteCard";
+import WebsiteCarousel from "./friendly-websites/WebsiteCarousel";
+import WebsiteMiniBar from "./friendly-websites/WebsiteMiniBar";
+import WebsiteGrid from "./friendly-websites/WebsiteGrid";
 
 const FriendlyWebsitesWidget = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const hasInitialized = useRef(false);
   const userInteracted = useRef(false);
+  const { fireConfetti, fireStarConfetti } = useConfetti();
 
   // Fetch settings with React Query for caching and real-time updates
   const { data: settings = defaultSettings } = useQuery({
@@ -72,12 +42,12 @@ const FriendlyWebsitesWidget = () => {
       }
       return defaultSettings;
     },
-    staleTime: 1000 * 30, // 30 seconds - will refetch when invalidated
+    staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });
 
   // Fetch websites with React Query
-  const { data: websites = [], isLoading } = useQuery({
+  const { data: rawWebsites = [], isLoading } = useQuery({
     queryKey: ['friendly_websites', 'active'],
     queryFn: async () => {
       const { data } = await supabase
@@ -86,10 +56,38 @@ const FriendlyWebsitesWidget = () => {
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 
-      return data || [];
+      return (data || []) as FriendlyWebsite[];
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
+
+  // Process websites (shuffle if enabled, sort featured first)
+  const websites = useMemo(() => {
+    let processed = [...rawWebsites];
+    
+    // Sort featured websites first
+    processed.sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return 0;
+    });
+
+    // Shuffle non-featured if enabled
+    if (settings.shuffleOrder) {
+      const featured = processed.filter(w => w.is_featured);
+      const nonFeatured = processed.filter(w => !w.is_featured);
+      
+      // Fisher-Yates shuffle for non-featured
+      for (let i = nonFeatured.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nonFeatured[i], nonFeatured[j]] = [nonFeatured[j], nonFeatured[i]];
+      }
+      
+      processed = [...featured, ...nonFeatured];
+    }
+
+    return processed;
+  }, [rawWebsites, settings.shuffleOrder]);
 
   // Open by default logic - only run once on initial load
   useEffect(() => {
@@ -116,6 +114,31 @@ const FriendlyWebsitesWidget = () => {
     setIsOpen(!isOpen);
   };
 
+  // Handle website click - track and celebrate
+  const handleWebsiteClick = async (website: FriendlyWebsite) => {
+    // Track click
+    try {
+      await supabase.rpc('increment_website_click', { p_website_id: website.id });
+    } catch (error) {
+      console.error('Failed to track click:', error);
+    }
+
+    // Celebrate if enabled
+    if (settings.celebrateOnClick) {
+      if (settings.celebrationStyle === 'confetti') {
+        fireConfetti({ particleCount: 50, spread: 60 });
+      } else if (settings.celebrationStyle === 'stars') {
+        fireStarConfetti();
+      } else if (settings.celebrationStyle === 'sparkles') {
+        fireConfetti({ 
+          particleCount: 30, 
+          spread: 50, 
+          colors: ['#ffd700', '#ffec8b', '#fff8dc'] 
+        });
+      }
+    }
+  };
+
   // Check visibility permissions
   const isVisible = () => {
     if (!settings.enabled) return false;
@@ -133,45 +156,6 @@ const FriendlyWebsitesWidget = () => {
     small: 'w-48',
     medium: 'w-64',
     large: 'w-80',
-  };
-
-  const colorClasses = {
-    primary: 'bg-primary/10 border-primary/30 hover:bg-primary/20',
-    accent: 'bg-accent/10 border-accent/30 hover:bg-accent/20',
-    gradient: 'bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30',
-    glass: 'bg-card/80 backdrop-blur-xl border-border/50',
-    neon: 'bg-pink-500/10 border-pink-400/40 shadow-[0_0_15px_rgba(236,72,153,0.3)]',
-    sunset: 'bg-gradient-to-br from-orange-500/15 to-rose-500/15 border-orange-400/40',
-    ocean: 'bg-gradient-to-br from-cyan-500/15 to-blue-500/15 border-cyan-400/40',
-    forest: 'bg-gradient-to-br from-emerald-500/15 to-teal-500/15 border-emerald-400/40',
-    midnight: 'bg-gradient-to-br from-purple-900/20 to-indigo-900/20 border-purple-500/40',
-    minimal: 'bg-background border-border',
-  };
-
-  const buttonColorClasses = {
-    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    accent: 'bg-accent text-accent-foreground hover:bg-accent/90',
-    gradient: 'bg-gradient-to-r from-primary to-accent text-primary-foreground',
-    glass: 'bg-card/90 backdrop-blur-xl text-foreground border border-border/50 hover:bg-card',
-    neon: 'bg-pink-500 text-white hover:bg-pink-600 shadow-[0_0_10px_rgba(236,72,153,0.4)]',
-    sunset: 'bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600',
-    ocean: 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600',
-    forest: 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600',
-    midnight: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700',
-    minimal: 'bg-muted text-foreground hover:bg-muted/80 border border-border',
-  };
-
-  const pulseColors = {
-    primary: 'bg-primary',
-    accent: 'bg-accent',
-    gradient: 'bg-primary',
-    glass: 'bg-foreground',
-    neon: 'bg-pink-400',
-    sunset: 'bg-orange-400',
-    ocean: 'bg-cyan-400',
-    forest: 'bg-emerald-400',
-    midnight: 'bg-purple-400',
-    minimal: 'bg-foreground',
   };
 
   const animationVariants = {
@@ -196,6 +180,18 @@ const FriendlyWebsitesWidget = () => {
   const toggleButtonPosition = settings.position === 'right'
     ? 'right-0 rounded-l-lg'
     : 'left-0 rounded-r-lg';
+
+  // Render mini bar if enabled and widget is closed
+  if (settings.showMiniBar && !isOpen) {
+    return (
+      <WebsiteMiniBar
+        websites={websites}
+        settings={settings}
+        onWebsiteClick={handleWebsiteClick}
+        onExpand={handleToggle}
+      />
+    );
+  }
 
   return (
     <>
@@ -265,47 +261,49 @@ const FriendlyWebsitesWidget = () => {
               )}
             </h3>
 
-            {/* Website list */}
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {websites.map((website, index) => (
-                <motion.a
-                  key={website.id}
-                  href={website.url}
-                  target={website.open_in_new_tab ? '_blank' : '_self'}
-                  rel={website.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 hover:bg-background/80 transition-all duration-200 group"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ x: 4 }}
-                >
-                  {website.icon_url ? (
-                    <img 
-                      src={website.icon_url} 
-                      alt={website.name}
-                      className="w-8 h-8 rounded-lg object-cover"
+            {/* Website list based on display mode */}
+            <div className="max-h-80 overflow-y-auto">
+              {settings.displayMode === 'carousel' ? (
+                <WebsiteCarousel
+                  websites={websites}
+                  settings={settings}
+                  onWebsiteClick={handleWebsiteClick}
+                />
+              ) : settings.displayMode === 'grid' ? (
+                <WebsiteGrid
+                  websites={websites}
+                  settings={settings}
+                  onWebsiteClick={handleWebsiteClick}
+                />
+              ) : (
+                <div className="space-y-2">
+                  {websites.map((website, index) => (
+                    <WebsiteCard
+                      key={website.id}
+                      website={website}
+                      settings={settings}
+                      index={index}
+                      onWebsiteClick={handleWebsiteClick}
                     />
-                  ) : (
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <span className="text-primary font-semibold text-sm">
-                        {website.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                      {website.name}
-                    </p>
-                    {settings.showDescriptions && website.description && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {website.description}
-                      </p>
-                    )}
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </motion.a>
-              ))}
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Footer CTA */}
+            {settings.showFooterCTA && settings.footerCTAText && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-3 text-xs gap-1"
+                onClick={() => {
+                  fireConfetti({ particleCount: 30, spread: 40 });
+                }}
+              >
+                <PartyPopper className="w-3 h-3" />
+                {settings.footerCTAText}
+              </Button>
+            )}
 
             {/* Decorative elements */}
             <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-primary/10 rounded-full blur-xl" />

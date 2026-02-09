@@ -19,7 +19,18 @@ import {
   Sparkles,
   Hash,
   FileText,
-  PanelRightOpen
+  PanelRightOpen,
+  LayoutGrid,
+  List,
+  Play,
+  Star,
+  PartyPopper,
+  Shuffle,
+  MousePointer,
+  CheckCircle,
+  Tag,
+  Zap,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -51,53 +63,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
-interface FriendlyWebsite {
-  id: string;
-  name: string;
-  url: string;
-  icon_url: string | null;
-  description: string | null;
-  display_order: number;
-  is_active: boolean;
-  open_in_new_tab: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface WidgetSettings {
-  enabled: boolean;
-  visibleToPublic: boolean;
-  visibleToLoggedIn: boolean;
-  colorScheme: 'primary' | 'accent' | 'gradient' | 'glass' | 'neon' | 'sunset' | 'ocean' | 'forest' | 'midnight' | 'minimal';
-  size: 'small' | 'medium' | 'large';
-  position: 'left' | 'right';
-  showOnMobile: boolean;
-  animationType: 'slide' | 'fade' | 'bounce';
-  openByDefault: boolean;
-  autoCloseDelay: number | null;
-  showWebsiteCount: boolean;
-  pulseAnimation: boolean;
-  headerText: string;
-  showDescriptions: boolean;
-}
-
-const defaultSettings: WidgetSettings = {
-  enabled: true,
-  visibleToPublic: true,
-  visibleToLoggedIn: true,
-  colorScheme: 'primary',
-  size: 'medium',
-  position: 'right',
-  showOnMobile: true,
-  animationType: 'slide',
-  openByDefault: false,
-  autoCloseDelay: null,
-  showWebsiteCount: true,
-  pulseAnimation: true,
-  headerText: 'Partner Sites',
-  showDescriptions: true,
-};
+import { FriendlyWebsite, WidgetSettings, defaultSettings } from "@/components/friendly-websites/types";
 
 // Color scheme preview colors
 const colorSchemePreview: Record<WidgetSettings['colorScheme'], string> = {
@@ -118,12 +84,14 @@ const SortableWebsiteCard = ({
   website, 
   onToggleActive, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onToggleFeatured 
 }: { 
   website: FriendlyWebsite;
   onToggleActive: (id: string, isActive: boolean) => void;
   onEdit: (website: FriendlyWebsite) => void;
   onDelete: (id: string) => void;
+  onToggleFeatured: (id: string, isFeatured: boolean) => void;
 }) => {
   const {
     attributes,
@@ -144,7 +112,7 @@ const SortableWebsiteCard = ({
     <Card 
       ref={setNodeRef} 
       style={style} 
-      className={`${!website.is_active ? 'opacity-60' : ''} ${isDragging ? 'z-50 shadow-lg' : ''}`}
+      className={`${!website.is_active ? 'opacity-60' : ''} ${isDragging ? 'z-50 shadow-lg' : ''} ${website.is_featured ? 'ring-2 ring-primary/50' : ''}`}
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
@@ -178,7 +146,18 @@ const SortableWebsiteCard = ({
           )}
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-foreground truncate">{website.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-foreground truncate">{website.name}</h3>
+              {website.is_featured && (
+                <Badge className="text-[10px] px-1.5 py-0">Featured</Badge>
+              )}
+              {website.is_verified && (
+                <CheckCircle className="w-4 h-4 text-blue-500" />
+              )}
+              {website.badge_text && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{website.badge_text}</Badge>
+              )}
+            </div>
             <a 
               href={website.url} 
               target="_blank" 
@@ -188,12 +167,39 @@ const SortableWebsiteCard = ({
               {website.url}
               <ExternalLink className="w-3 h-3" />
             </a>
-            {website.description && (
-              <p className="text-xs text-muted-foreground truncate mt-1">{website.description}</p>
-            )}
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              {website.click_count > 0 && (
+                <span className="flex items-center gap-1">
+                  <MousePointer className="w-3 h-3" />
+                  {website.click_count} clicks
+                </span>
+              )}
+              {website.star_rating && website.star_rating > 0 && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                  {website.star_rating}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={website.is_featured ? "default" : "outline"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onToggleFeatured(website.id, !website.is_featured)}
+                >
+                  <Star className={`w-4 h-4 ${website.is_featured ? 'fill-current' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{website.is_featured ? 'Remove from featured' : 'Mark as featured'}</p>
+              </TooltipContent>
+            </Tooltip>
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
@@ -258,6 +264,12 @@ const AdminFriendlyWebsites = () => {
     url: '',
     icon_url: '',
     description: '',
+    tagline: '',
+    badge_text: '',
+    badge_color: 'primary',
+    star_rating: '',
+    is_verified: false,
+    is_featured: false,
     open_in_new_tab: true,
   });
 
@@ -283,7 +295,7 @@ const AdminFriendlyWebsites = () => {
         .order('display_order', { ascending: true });
 
       if (websitesError) throw websitesError;
-      setWebsites(websitesData || []);
+      setWebsites((websitesData || []) as FriendlyWebsite[]);
 
       // Fetch settings
       const { data: settingsData } = await supabase
@@ -372,6 +384,12 @@ const AdminFriendlyWebsites = () => {
           url: formData.url,
           icon_url: formData.icon_url || null,
           description: formData.description || null,
+          tagline: formData.tagline || null,
+          badge_text: formData.badge_text || null,
+          badge_color: formData.badge_color || 'primary',
+          star_rating: formData.star_rating ? parseFloat(formData.star_rating) : null,
+          is_verified: formData.is_verified,
+          is_featured: formData.is_featured,
           open_in_new_tab: formData.open_in_new_tab,
           display_order: maxOrder + 1,
         });
@@ -380,7 +398,7 @@ const AdminFriendlyWebsites = () => {
 
       toast.success('Website added successfully');
       setAddDialogOpen(false);
-      setFormData({ name: '', url: '', icon_url: '', description: '', open_in_new_tab: true });
+      resetFormData();
       fetchData();
     } catch (error) {
       console.error('Error adding website:', error);
@@ -399,6 +417,12 @@ const AdminFriendlyWebsites = () => {
           url: formData.url,
           icon_url: formData.icon_url || null,
           description: formData.description || null,
+          tagline: formData.tagline || null,
+          badge_text: formData.badge_text || null,
+          badge_color: formData.badge_color || 'primary',
+          star_rating: formData.star_rating ? parseFloat(formData.star_rating) : null,
+          is_verified: formData.is_verified,
+          is_featured: formData.is_featured,
           open_in_new_tab: formData.open_in_new_tab,
         })
         .eq('id', editingWebsite.id);
@@ -407,12 +431,28 @@ const AdminFriendlyWebsites = () => {
 
       toast.success('Website updated successfully');
       setEditingWebsite(null);
-      setFormData({ name: '', url: '', icon_url: '', description: '', open_in_new_tab: true });
+      resetFormData();
       fetchData();
     } catch (error) {
       console.error('Error updating website:', error);
       toast.error('Failed to update website');
     }
+  };
+
+  const resetFormData = () => {
+    setFormData({
+      name: '',
+      url: '',
+      icon_url: '',
+      description: '',
+      tagline: '',
+      badge_text: '',
+      badge_color: 'primary',
+      star_rating: '',
+      is_verified: false,
+      is_featured: false,
+      open_in_new_tab: true,
+    });
   };
 
   const handleDeleteWebsite = async (id: string) => {
@@ -447,6 +487,23 @@ const AdminFriendlyWebsites = () => {
       fetchData();
     } catch (error) {
       console.error('Error toggling website:', error);
+      toast.error('Failed to update website');
+    }
+  };
+
+  const handleToggleFeatured = async (id: string, isFeatured: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('friendly_websites')
+        .update({ is_featured: isFeatured })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(isFeatured ? 'Website featured' : 'Website unfeatured');
+      fetchData();
+    } catch (error) {
+      console.error('Error toggling featured:', error);
       toast.error('Failed to update website');
     }
   };
@@ -491,9 +548,132 @@ const AdminFriendlyWebsites = () => {
       url: website.url,
       icon_url: website.icon_url || '',
       description: website.description || '',
+      tagline: website.tagline || '',
+      badge_text: website.badge_text || '',
+      badge_color: website.badge_color || 'primary',
+      star_rating: website.star_rating?.toString() || '',
+      is_verified: website.is_verified,
+      is_featured: website.is_featured,
       open_in_new_tab: website.open_in_new_tab,
     });
   };
+
+  const WebsiteFormFields = () => (
+    <div className="space-y-4 py-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Name *</Label>
+          <Input
+            placeholder="Website name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>URL *</Label>
+          <Input
+            placeholder="https://example.com"
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Icon URL (optional)</Label>
+        <Input
+          placeholder="https://example.com/icon.png"
+          value={formData.icon_url}
+          onChange={(e) => setFormData({ ...formData, icon_url: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tagline (optional)</Label>
+        <Input
+          placeholder="Short catchy tagline"
+          value={formData.tagline}
+          onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Description (optional)</Label>
+        <Textarea
+          placeholder="Brief description of the website"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Custom Badge Text</Label>
+          <Input
+            placeholder="Hot, Deal, Free, etc."
+            value={formData.badge_text}
+            onChange={(e) => setFormData({ ...formData, badge_text: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Badge Color</Label>
+          <Select
+            value={formData.badge_color}
+            onValueChange={(value) => setFormData({ ...formData, badge_color: value })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="primary">Primary</SelectItem>
+              <SelectItem value="success">Green</SelectItem>
+              <SelectItem value="warning">Yellow</SelectItem>
+              <SelectItem value="danger">Red</SelectItem>
+              <SelectItem value="info">Blue</SelectItem>
+              <SelectItem value="purple">Purple</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Star Rating (0-5)</Label>
+        <Input
+          type="number"
+          min="0"
+          max="5"
+          step="0.5"
+          placeholder="4.5"
+          value={formData.star_rating}
+          onChange={(e) => setFormData({ ...formData, star_rating: e.target.value })}
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+          <Label>Verified</Label>
+          <Switch
+            checked={formData.is_verified}
+            onCheckedChange={(checked) => setFormData({ ...formData, is_verified: checked })}
+          />
+        </div>
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+          <Label>Featured</Label>
+          <Switch
+            checked={formData.is_featured}
+            onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+          />
+        </div>
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+          <Label>New Tab</Label>
+          <Switch
+            checked={formData.open_in_new_tab}
+            onCheckedChange={(checked) => setFormData({ ...formData, open_in_new_tab: checked })}
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -524,6 +704,10 @@ const AdminFriendlyWebsites = () => {
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 mr-2" />
             Widget Settings
+          </TabsTrigger>
+          <TabsTrigger value="engagement">
+            <Zap className="w-4 h-4 mr-2" />
+            Engagement
           </TabsTrigger>
         </TabsList>
 
@@ -564,6 +748,7 @@ const AdminFriendlyWebsites = () => {
                       onToggleActive={handleToggleActive}
                       onEdit={openEditDialog}
                       onDelete={handleDeleteWebsite}
+                      onToggleFeatured={handleToggleFeatured}
                     />
                   ))}
                 </div>
@@ -589,6 +774,81 @@ const AdminFriendlyWebsites = () => {
                   checked={settings.enabled}
                   onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
                 />
+              </div>
+
+              <Separator />
+
+              {/* Display Mode */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4" />
+                  Display Mode
+                </h4>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => setSettings({ ...settings, displayMode: 'list' })}
+                    className={`p-4 border rounded-lg text-left transition-all ${
+                      settings.displayMode === 'list' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                    }`}
+                  >
+                    <List className="w-6 h-6 mb-2" />
+                    <div className="font-medium">List View</div>
+                    <p className="text-xs text-muted-foreground">Traditional vertical list</p>
+                  </button>
+
+                  <button
+                    onClick={() => setSettings({ ...settings, displayMode: 'carousel' })}
+                    className={`p-4 border rounded-lg text-left transition-all ${
+                      settings.displayMode === 'carousel' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                    }`}
+                  >
+                    <Play className="w-6 h-6 mb-2" />
+                    <div className="font-medium">Carousel</div>
+                    <p className="text-xs text-muted-foreground">Auto-rotating slideshow</p>
+                  </button>
+
+                  <button
+                    onClick={() => setSettings({ ...settings, displayMode: 'grid' })}
+                    className={`p-4 border rounded-lg text-left transition-all ${
+                      settings.displayMode === 'grid' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                    }`}
+                  >
+                    <LayoutGrid className="w-6 h-6 mb-2" />
+                    <div className="font-medium">Grid View</div>
+                    <p className="text-xs text-muted-foreground">Compact icon grid</p>
+                  </button>
+                </div>
+
+                {settings.displayMode === 'carousel' && (
+                  <div className="grid md:grid-cols-2 gap-4 mt-4 p-4 border rounded-lg bg-muted/30">
+                    <div className="space-y-2">
+                      <Label>Carousel Interval (seconds)</Label>
+                      <Select
+                        value={settings.carouselInterval.toString()}
+                        onValueChange={(value) => setSettings({ ...settings, carouselInterval: parseInt(value) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3 seconds</SelectItem>
+                          <SelectItem value="5">5 seconds</SelectItem>
+                          <SelectItem value="7">7 seconds</SelectItem>
+                          <SelectItem value="10">10 seconds</SelectItem>
+                          <SelectItem value="15">15 seconds</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Auto-Play</Label>
+                      <Switch
+                        checked={settings.carouselAutoPlay}
+                        onCheckedChange={(checked) => setSettings({ ...settings, carouselAutoPlay: checked })}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
@@ -674,6 +934,36 @@ const AdminFriendlyWebsites = () => {
                       onCheckedChange={(checked) => setSettings({ ...settings, pulseAnimation: checked })}
                     />
                   </div>
+
+                  {/* Shuffle Order */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Shuffle className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Shuffle Order</Label>
+                        <p className="text-xs text-muted-foreground">Randomize order on each visit (featured always first)</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.shuffleOrder}
+                      onCheckedChange={(checked) => setSettings({ ...settings, shuffleOrder: checked })}
+                    />
+                  </div>
+
+                  {/* Mini Bar */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Mini Bar</Label>
+                        <p className="text-xs text-muted-foreground">Floating icon bar when widget is closed</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showMiniBar}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showMiniBar: checked })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -713,6 +1003,27 @@ const AdminFriendlyWebsites = () => {
                       checked={settings.showDescriptions}
                       onCheckedChange={(checked) => setSettings({ ...settings, showDescriptions: checked })}
                     />
+                  </div>
+
+                  {/* Footer CTA */}
+                  <div className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                        <Label>Footer CTA Button</Label>
+                      </div>
+                      <Switch
+                        checked={settings.showFooterCTA}
+                        onCheckedChange={(checked) => setSettings({ ...settings, showFooterCTA: checked })}
+                      />
+                    </div>
+                    {settings.showFooterCTA && (
+                      <Input
+                        value={settings.footerCTAText}
+                        onChange={(e) => setSettings({ ...settings, footerCTAText: e.target.value })}
+                        placeholder="Explore All Partners"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -775,66 +1086,14 @@ const AdminFriendlyWebsites = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="primary">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.primary}`} />
-                            Primary
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="accent">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.accent}`} />
-                            Accent
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="gradient">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.gradient}`} />
-                            Gradient
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="glass">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.glass}`} />
-                            Glass
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="neon">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.neon}`} />
-                            Neon
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="sunset">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.sunset}`} />
-                            Sunset
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="ocean">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.ocean}`} />
-                            Ocean
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="forest">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.forest}`} />
-                            Forest
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="midnight">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.midnight}`} />
-                            Midnight
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="minimal">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded ${colorSchemePreview.minimal}`} />
-                            Minimal
-                          </div>
-                        </SelectItem>
+                        {Object.entries(colorSchemePreview).map(([key, className]) => (
+                          <SelectItem key={key} value={key}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded ${className}`} />
+                              {key.charAt(0).toUpperCase() + key.slice(1)}
+                            </div>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -928,117 +1187,253 @@ const AdminFriendlyWebsites = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="engagement" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Engagement Features
+              </CardTitle>
+              <CardDescription>Configure features that encourage clicks and traffic</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Featured Website Settings */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Star className="w-4 h-4" />
+                  Featured Website Settings
+                </h4>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Featured Label</Label>
+                    <Input
+                      value={settings.featuredLabel}
+                      onChange={(e) => setSettings({ ...settings, featuredLabel: e.target.value })}
+                      placeholder="Featured"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Featured Style</Label>
+                    <Select
+                      value={settings.featuredStyle}
+                      onValueChange={(value: WidgetSettings['featuredStyle']) => 
+                        setSettings({ ...settings, featuredStyle: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="glow">Glowing Border</SelectItem>
+                        <SelectItem value="badge">Badge Label</SelectItem>
+                        <SelectItem value="animated">Pulse Animation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Click Celebration */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <PartyPopper className="w-4 h-4" />
+                  Click Celebration
+                </h4>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <Label>Celebrate on Click</Label>
+                    <p className="text-xs text-muted-foreground">Fire animation when user clicks a partner site</p>
+                  </div>
+                  <Switch
+                    checked={settings.celebrateOnClick}
+                    onCheckedChange={(checked) => setSettings({ ...settings, celebrateOnClick: checked })}
+                  />
+                </div>
+
+                {settings.celebrateOnClick && (
+                  <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                    <Label>Celebration Style</Label>
+                    <Select
+                      value={settings.celebrationStyle}
+                      onValueChange={(value: WidgetSettings['celebrationStyle']) => 
+                        setSettings({ ...settings, celebrationStyle: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="confetti">🎉 Confetti</SelectItem>
+                        <SelectItem value="stars">⭐ Stars</SelectItem>
+                        <SelectItem value="sparkles">✨ Sparkles</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Visual Indicators */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Visual Indicators
+                </h4>
+
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Badges</Label>
+                        <p className="text-xs text-muted-foreground">Display New, Popular, and custom badges</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showBadges}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showBadges: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Star Ratings</Label>
+                        <p className="text-xs text-muted-foreground">Display star ratings for websites</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showStarRatings}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showStarRatings: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Verified Badge</Label>
+                        <p className="text-xs text-muted-foreground">Show verified checkmark on trusted sites</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showVerifiedBadge}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showVerifiedBadge: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <MousePointer className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label>Show Click Counts</Label>
+                        <p className="text-xs text-muted-foreground">Display how many times each site was visited</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={settings.showClickCounts}
+                      onCheckedChange={(checked) => setSettings({ ...settings, showClickCounts: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Hover & CTA */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-foreground">Call-to-Action Settings</h4>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <Label>Show Hover Preview</Label>
+                    <p className="text-xs text-muted-foreground">Rich preview card on hover</p>
+                  </div>
+                  <Switch
+                    checked={settings.showHoverPreview}
+                    onCheckedChange={(checked) => setSettings({ ...settings, showHoverPreview: checked })}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>CTA Style</Label>
+                    <Select
+                      value={settings.ctaStyle}
+                      onValueChange={(value: WidgetSettings['ctaStyle']) => 
+                        setSettings({ ...settings, ctaStyle: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="icon">External Link Icon</SelectItem>
+                        <SelectItem value="arrow">Arrow Icon</SelectItem>
+                        <SelectItem value="button">Button</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {settings.ctaStyle === 'button' && (
+                    <div className="space-y-2">
+                      <Label>CTA Button Text</Label>
+                      <Input
+                        value={settings.ctaText}
+                        onChange={(e) => setSettings({ ...settings, ctaText: e.target.value })}
+                        placeholder="Visit"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <Button onClick={saveSettings} disabled={isSaving} className="w-full">
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Engagement Settings'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Add Website Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Friendly Website</DialogTitle>
             <DialogDescription>
               Add a partner or related website to show in the sidebar widget
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Name *</Label>
-              <Input
-                placeholder="Website name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>URL *</Label>
-              <Input
-                placeholder="https://example.com"
-                value={formData.url}
-                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Icon URL (optional)</Label>
-              <Input
-                placeholder="https://example.com/icon.png"
-                value={formData.icon_url}
-                onChange={(e) => setFormData({ ...formData, icon_url: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Textarea
-                placeholder="Brief description of the website"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>Open in new tab</Label>
-              <Switch
-                checked={formData.open_in_new_tab}
-                onCheckedChange={(checked) => setFormData({ ...formData, open_in_new_tab: checked })}
-              />
-            </div>
-          </div>
+          <WebsiteFormFields />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setAddDialogOpen(false); resetFormData(); }}>Cancel</Button>
             <Button onClick={handleAddWebsite}>Add Website</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Website Dialog */}
-      <Dialog open={!!editingWebsite} onOpenChange={(open) => !open && setEditingWebsite(null)}>
-        <DialogContent>
+      <Dialog open={!!editingWebsite} onOpenChange={(open) => { if (!open) { setEditingWebsite(null); resetFormData(); } }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Website</DialogTitle>
             <DialogDescription>
               Update the website details
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Name *</Label>
-              <Input
-                placeholder="Website name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>URL *</Label>
-              <Input
-                placeholder="https://example.com"
-                value={formData.url}
-                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Icon URL (optional)</Label>
-              <Input
-                placeholder="https://example.com/icon.png"
-                value={formData.icon_url}
-                onChange={(e) => setFormData({ ...formData, icon_url: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Textarea
-                placeholder="Brief description of the website"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>Open in new tab</Label>
-              <Switch
-                checked={formData.open_in_new_tab}
-                onCheckedChange={(checked) => setFormData({ ...formData, open_in_new_tab: checked })}
-              />
-            </div>
-          </div>
+          <WebsiteFormFields />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingWebsite(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEditingWebsite(null); resetFormData(); }}>Cancel</Button>
             <Button onClick={handleUpdateWebsite}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
