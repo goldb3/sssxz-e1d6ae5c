@@ -42,8 +42,9 @@ const FriendlyWebsitesWidget = () => {
       }
       return defaultSettings;
     },
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 5,
     refetchOnWindowFocus: true,
+    refetchInterval: 1000 * 15,
   });
 
   // Fetch websites with React Query
