@@ -25,7 +25,7 @@ const FriendlyWebsitesWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const hasInitialized = useRef(false);
   const userInteracted = useRef(false);
-  const { fireConfetti, fireStarConfetti } = useConfetti();
+  const { fireConfetti, fireStarConfetti, fireFireworks, fireRainbow, fireSideCannons, fireCelebration } = useConfetti();
 
   // Fetch settings with React Query for caching and real-time updates
   const { data: settings = defaultSettings } = useQuery({
@@ -125,16 +125,21 @@ const FriendlyWebsitesWidget = () => {
 
     // Celebrate if enabled
     if (settings.celebrateOnClick) {
-      if (settings.celebrationStyle === 'confetti') {
+      const style = settings.celebrationStyle;
+      if (style === 'confetti') {
         fireConfetti({ particleCount: 50, spread: 60 });
-      } else if (settings.celebrationStyle === 'stars') {
+      } else if (style === 'stars') {
         fireStarConfetti();
-      } else if (settings.celebrationStyle === 'sparkles') {
-        fireConfetti({ 
-          particleCount: 30, 
-          spread: 50, 
-          colors: ['#ffd700', '#ffec8b', '#fff8dc'] 
-        });
+      } else if (style === 'sparkles') {
+        fireConfetti({ particleCount: 30, spread: 50, colors: ['#ffd700', '#ffec8b', '#fff8dc'] });
+      } else if (style === 'fireworks') {
+        fireFireworks();
+      } else if (style === 'rainbow') {
+        fireRainbow();
+      } else if (style === 'cannons') {
+        fireSideCannons();
+      } else if (style === 'celebration') {
+        fireCelebration();
       }
     }
   };
