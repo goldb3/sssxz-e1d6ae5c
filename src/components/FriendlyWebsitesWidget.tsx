@@ -303,7 +303,14 @@ const FriendlyWebsitesWidget = () => {
                 size="sm"
                 className="w-full mt-3 text-xs gap-1"
                 onClick={() => {
-                  fireConfetti({ particleCount: 30, spread: 40 });
+                  const style = settings.celebrationStyle;
+                  if (style === 'confetti') fireConfetti({ particleCount: 50, spread: 60 });
+                  else if (style === 'stars') fireStarConfetti();
+                  else if (style === 'sparkles') fireConfetti({ particleCount: 30, spread: 50, colors: ['#ffd700', '#ffec8b', '#fff8dc'] });
+                  else if (style === 'fireworks') fireFireworks();
+                  else if (style === 'rainbow') fireRainbow();
+                  else if (style === 'cannons') fireSideCannons();
+                  else if (style === 'celebration') fireCelebration();
                 }}
               >
                 <PartyPopper className="w-3 h-3" />
