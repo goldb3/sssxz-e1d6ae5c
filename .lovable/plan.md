@@ -1,98 +1,169 @@
 
-# Plan: Enhanced Security Clauses & Terms Agreement System
+
+# Plan: Enhanced Friendly Websites Widget
 
 ## Overview
-Strengthen the Terms of Service with explicit prohibitions against hacking, carding, and cybercrime. Add a mandatory "I Agree to Terms" checkbox during signup to create a legal consent record.
+Add new customization options to the Friendly Websites sidebar widget including an "Open by Default" setting, more color schemes, and additional appearance/behavior options to make the widget more engaging.
 
 ---
 
 ## Changes Required
 
-### 1. Update Terms of Service (Database Update)
-Add a new dedicated section specifically addressing cybersecurity violations:
+### 1. Add New Widget Settings Options
 
-**New Section: "Cybercrime & Security Violations"**
-- Explicitly prohibit hacking, unauthorized access, exploiting vulnerabilities
-- Prohibit carding, credit card fraud, financial crimes
-- Prohibit phishing, social engineering, identity theft
-- Prohibit DDoS attacks, botnets, malware distribution
-- Prohibit dark web activities, illegal marketplaces
-- Prohibit bypassing authentication or security measures
-- Include criminal penalty warnings
+**New Settings to Add:**
 
-**Update "Prohibited Activities" section** to add:
-- Carding or credit card testing/fraud
-- Hacking, cracking, or unauthorized system access
-- Distribution of stolen data or credentials
-- Use for ransomware or extortion
-- Cryptojacking or unauthorized cryptocurrency mining
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `openByDefault` | boolean | false | Keep widget open when page loads |
+| `autoCloseDelay` | number \| null | null | Auto-close after X seconds (null = never) |
+| `showWebsiteCount` | boolean | true | Display count badge on toggle button |
+| `pulseAnimation` | boolean | true | Show pulsing dot to attract attention |
+| `headerText` | string | "Partner Sites" | Customizable header text |
+| `showDescriptions` | boolean | true | Show website descriptions |
 
-### 2. Update Privacy Policy (Database Update)
-Add stronger language about:
-- Complete cooperation with cybercrime investigations
-- IP address logging for security and legal compliance
-- Right to report suspicious activities to authorities
-- No encryption of user activity logs (for law enforcement access)
+**New Color Schemes:**
 
-### 3. Add Terms Acceptance Checkbox on Signup (Auth.tsx)
-**UI Changes:**
-- Add a checkbox before the signup button: "I agree to the Terms of Service and Privacy Policy"
-- Checkbox must be checked to enable the signup button
-- Links to TOS and Privacy Policy open in new tabs
-- Store consent timestamp in user profile
-
-**Database:**
-- Add `terms_accepted_at` column to `profiles` table
-- Record when user accepted terms for legal compliance
-
-### 4. Add Guest Terms Banner (EmailGenerator.tsx)
-For non-registered users generating emails:
-- Show a small notice: "By using this service, you agree to our Terms of Service"
-- Link to TOS page
-- No blocking checkbox (to keep it user-friendly) but creates implicit consent
+| Scheme | Description |
+|--------|-------------|
+| `neon` | Vibrant neon glow effect |
+| `sunset` | Warm orange/pink gradient |
+| `ocean` | Cool blue/cyan tones |
+| `forest` | Natural green tones |
+| `midnight` | Dark elegant purple |
+| `minimal` | Clean, minimal styling |
 
 ---
 
-## Technical Implementation
+### 2. Update WidgetSettings Interface
 
-### Database Migration
-```sql
--- Add terms acceptance tracking to profiles
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS terms_version TEXT DEFAULT '1.0';
+```typescript
+interface WidgetSettings {
+  // Existing
+  enabled: boolean;
+  visibleToPublic: boolean;
+  visibleToLoggedIn: boolean;
+  colorScheme: 'primary' | 'accent' | 'gradient' | 'glass' | 'neon' | 'sunset' | 'ocean' | 'forest' | 'midnight' | 'minimal';
+  size: 'small' | 'medium' | 'large';
+  position: 'left' | 'right';
+  showOnMobile: boolean;
+  animationType: 'slide' | 'fade' | 'bounce';
+  
+  // New options
+  openByDefault: boolean;
+  autoCloseDelay: number | null;
+  showWebsiteCount: boolean;
+  pulseAnimation: boolean;
+  headerText: string;
+  showDescriptions: boolean;
+}
 ```
 
-### Auth.tsx Changes
-- Add state for `agreedToTerms` checkbox
-- Add validation that checkbox is checked before signup
-- Save consent timestamp when user signs up
-- Add styled checkbox with links to TOS/Privacy Policy
+---
 
-### Terms of Service Content Update
-Add new sections:
-- Section 4.1: Cybersecurity Violations (Hacking/Carding)
-- Section 4.2: Financial Crime Prohibition
-- Section 4.3: Data Theft & Privacy Violations
-- Enhanced warning box with criminal penalties notice
+### 3. Update FriendlyWebsitesWidget.tsx
+
+**Changes:**
+
+1. **Open by Default Logic:**
+   - Initialize `isOpen` state from settings: `useState(settings.openByDefault)`
+   - Use `useEffect` to sync with settings changes
+
+2. **Auto-Close Timer:**
+   - Add `useEffect` to start timer when widget opens
+   - Clear timer on close or when user interacts
+
+3. **Website Count Badge:**
+   - Show badge on toggle button with website count
+   - Pulsing animation to attract attention
+
+4. **New Color Schemes:**
+   - Add 6 new color scheme variants
+   - Each with unique background, border, and button styles
+
+5. **Customizable Header:**
+   - Use `settings.headerText` instead of hardcoded "Partner Sites"
+
+6. **Toggle Descriptions:**
+   - Conditionally render descriptions based on `showDescriptions`
 
 ---
 
-## User Experience Flow
+### 4. Update AdminFriendlyWebsites.tsx
 
-### For New Users (Signup)
-1. Fill in signup form
-2. Must check "I agree to Terms of Service and Privacy Policy"
-3. Can click links to read full documents
-4. Submit button only enabled when checkbox is checked
-5. Consent timestamp saved to database
+**Add New Settings Controls:**
 
-### For Existing Users
-- Existing users not affected (grandfather clause)
-- Optional: Show terms update banner if terms version changes
+1. **"Open by Default" Toggle:**
+   - Switch control in settings panel
+   - Description: "Widget opens automatically when page loads"
 
-### For Guests
-- Small notice text above email generator
-- Implicit consent by using the service
+2. **"Auto-Close Delay" Input:**
+   - Number input or select (0/5/10/15/30 seconds, or "Never")
+   - Description: "Automatically close after X seconds"
+
+3. **"Show Website Count" Toggle:**
+   - Shows badge with number of partner sites
+
+4. **"Pulse Animation" Toggle:**
+   - Enable/disable attention-grabbing pulse
+
+5. **"Header Text" Input:**
+   - Text input to customize widget header
+
+6. **"Show Descriptions" Toggle:**
+   - Show/hide website descriptions in list
+
+7. **Expanded Color Scheme Dropdown:**
+   - Add all 6 new color options with preview swatches
+
+---
+
+## Technical Implementation Details
+
+### Color Scheme Definitions
+
+```typescript
+const colorClasses = {
+  // Existing
+  primary: 'bg-primary/10 border-primary/30',
+  accent: 'bg-accent/10 border-accent/30',
+  gradient: 'bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30',
+  glass: 'bg-card/80 backdrop-blur-xl border-border/50',
+  
+  // New schemes
+  neon: 'bg-pink-500/10 border-pink-400/40 shadow-[0_0_15px_rgba(236,72,153,0.3)]',
+  sunset: 'bg-gradient-to-br from-orange-500/15 to-rose-500/15 border-orange-400/40',
+  ocean: 'bg-gradient-to-br from-cyan-500/15 to-blue-500/15 border-cyan-400/40',
+  forest: 'bg-gradient-to-br from-emerald-500/15 to-teal-500/15 border-emerald-400/40',
+  midnight: 'bg-gradient-to-br from-purple-900/20 to-indigo-900/20 border-purple-500/40',
+  minimal: 'bg-background border-border',
+};
+```
+
+### Auto-Close Timer Logic
+
+```typescript
+useEffect(() => {
+  if (isOpen && settings.autoCloseDelay && settings.autoCloseDelay > 0) {
+    const timer = setTimeout(() => {
+      setIsOpen(false);
+    }, settings.autoCloseDelay * 1000);
+    
+    return () => clearTimeout(timer);
+  }
+}, [isOpen, settings.autoCloseDelay]);
+```
+
+### Open by Default Logic
+
+```typescript
+// Use useEffect to set initial open state after settings load
+useEffect(() => {
+  if (settings.openByDefault) {
+    setIsOpen(true);
+  }
+}, [settings.openByDefault]);
+```
 
 ---
 
@@ -100,31 +171,56 @@ Add new sections:
 
 | File | Changes |
 |------|---------|
-| `supabase/migrations/` | Add `terms_accepted_at` column to profiles |
-| `src/pages/Auth.tsx` | Add checkbox, validation, consent saving |
-| `src/components/EmailGenerator.tsx` | Add small terms notice for guests |
-| Database: `page_content` | Update TOS with cybercrime sections |
-| Database: `page_content` | Update Privacy Policy with security logging |
+| `src/components/FriendlyWebsitesWidget.tsx` | Add new color schemes, open by default logic, auto-close timer, count badge, customizable header |
+| `src/pages/admin/AdminFriendlyWebsites.tsx` | Add new settings controls for all new options |
 
 ---
 
-## Security Clauses to Add (Summary)
+## UI Preview (Widget Settings Panel)
 
-**Explicitly Prohibited:**
-- Hacking, cracking, penetration testing without authorization
-- Carding, credit card fraud, BIN checking
-- Phishing campaigns, credential harvesting
-- Identity theft, impersonation
-- Malware, ransomware, spyware distribution
-- DDoS attacks, botnet operations
-- Dark web marketplace activities
-- Cryptocurrency scams, pump-and-dump schemes
-- Social engineering attacks
-- Exploiting zero-day vulnerabilities
-- Unauthorized data scraping or harvesting
+```text
++-----------------------------------------------+
+|  Widget Settings                              |
++-----------------------------------------------+
+|                                               |
+|  [x] Enable Widget                            |
+|                                               |
+|  --- Display Behavior ---                     |
+|  [x] Open by Default                          |
+|      Widget opens automatically on page load  |
+|                                               |
+|  Auto-Close Delay: [Never      v]             |
+|      5 sec, 10 sec, 15 sec, 30 sec, Never     |
+|                                               |
+|  [x] Show Website Count Badge                 |
+|  [x] Pulse Animation (attracts attention)     |
+|                                               |
+|  --- Content ---                              |
+|  Header Text: [Partner Sites    ]             |
+|  [x] Show Website Descriptions                |
+|                                               |
+|  --- Appearance ---                           |
+|  Color Scheme: [Neon            v]            |
+|      Primary, Accent, Gradient, Glass,        |
+|      Neon, Sunset, Ocean, Forest,             |
+|      Midnight, Minimal                        |
+|                                               |
+|  Size: [Medium v]   Position: [Right v]       |
+|  Animation: [Slide v]                         |
+|                                               |
+|  [x] Show on Mobile                           |
+|                                               |
+|  [       Save Settings       ]                |
++-----------------------------------------------+
+```
 
-**Legal Warnings:**
-- Criminal referral to law enforcement
-- Full cooperation with cybercrime units
-- IP and activity logging for investigations
-- User liable for all damages and legal fees
+---
+
+## Benefits
+
+1. **Better Engagement**: Open by default ensures users see partner sites immediately
+2. **Non-Intrusive**: Auto-close option prevents permanent screen clutter
+3. **Visual Appeal**: 6 new color schemes for better theme matching
+4. **Customization**: Admin has full control over widget behavior and appearance
+5. **User-Friendly**: Count badge and pulse animation draw attention naturally
+
