@@ -1271,6 +1271,10 @@ const AdminFriendlyWebsites = () => {
                         <SelectItem value="confetti">🎉 Confetti</SelectItem>
                         <SelectItem value="stars">⭐ Stars</SelectItem>
                         <SelectItem value="sparkles">✨ Sparkles</SelectItem>
+                        <SelectItem value="fireworks">🎆 Fireworks</SelectItem>
+                        <SelectItem value="rainbow">🌈 Rainbow Rain</SelectItem>
+                        <SelectItem value="cannons">💥 Side Cannons</SelectItem>
+                        <SelectItem value="celebration">🏆 Ultimate Celebration</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -45,7 +45,7 @@ export interface WidgetSettings {
   showStarRatings: boolean;
   showVerifiedBadge: boolean;
   celebrateOnClick: boolean;
-  celebrationStyle: 'confetti' | 'stars' | 'sparkles';
+  celebrationStyle: 'confetti' | 'stars' | 'sparkles' | 'fireworks' | 'rainbow' | 'cannons' | 'celebration';
   showHoverPreview: boolean;
   ctaStyle: 'icon' | 'button' | 'arrow';
   ctaText: string;
